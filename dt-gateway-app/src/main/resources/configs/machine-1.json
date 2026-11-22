@@ -1,0 +1,34 @@
+{
+  "machineId": "machine-1",
+  "machineType": "Generic",
+  "protocol": "MQTT",
+  "connection": {
+    "endpoint": "tcp://test.mosquitto.org:1883",
+    "reconnectInitialBackoffMs": 1000,
+    "reconnectMaxBackoffMs": 30000,
+    "quietWindowMs": 15000
+  },
+  "mappings": [
+    {
+      "sourceAddress": "/Iot/Status",
+      "idShort": "Status",
+      "valueType": "xs:string",
+      "unit": "",
+      "category": "VARIABLE"
+    },
+    {
+      "sourceAddress": "/MCP_Moburapa/14",
+      "idShort": "s14",
+      "valueType": "xs:string",
+      "unit": "",
+      "category": "VARIABLE"
+    },
+    {
+      "sourceAddress": "/espstmary049271/debug",
+      "idShort": "debug",
+      "valueType": "xs:string",
+      "unit": "",
+      "category": "VARIABLE"
+    }
+  ]
+}

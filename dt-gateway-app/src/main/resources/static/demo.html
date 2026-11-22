@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DT Gateway — Live Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 0.85rem;
+      margin-bottom: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .card h2 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      margin-bottom: 16px;
+    }
+
+    /* ── Status bar ── */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      padding: 10px 16px;
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #444;
+      flex-shrink: 0;
+    }
+    .dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+    .dot.error     { background: #ef4444; }
+
+    /* ── Stream log ── */
+    #stream-log {
+      height: 340px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      line-height: 1.7;
+    }
+
+    .log-line { padding: 1px 0; }
+    .log-snapshot { color: #555; }
+    .log-update   { color: #22c55e; }
+    .log-error    { color: #ef4444; }
+    .log-label {
+      display: inline-block;
+      width: 70px;
+      color: #444;
+    }
+    .log-name  { color: #60a5fa; min-width: 200px; display: inline-block; }
+    .log-value { color: #fbbf24; }
+    .log-unit  { color: #666; margin-left: 4px; }
+    .log-stale { color: #f97316; font-weight: bold; }
+
+    /* ── Write form ── */
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      font-size: 0.78rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    select, input[type="text"] {
+      background: #0f1117;
+      border: 1px solid #2a2d3a;
+      border-radius: 6px;
+      color: #e0e0e0;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    select:focus, input[type="text"]:focus {
+      border-color: #3b82f6;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+    button:hover  { background: #1d4ed8; }
+    button:active { background: #1e40af; }
+
+    #write-result {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      display: none;
+    }
+    #write-result.ok    { background: #14532d; color: #86efac; border: 1px solid #166534; }
+    #write-result.error { background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+
+    /* ── Quick buttons ── */
+    .quick-label {
+      font-size: 0.78rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+      margin-top: 18px;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .quick-btn {
+      padding: 8px 10px;
+      background: #1e293b;
+      color: #93c5fd;
+      border: 1px solid #2a2d3a;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 0;
+      text-align: left;
+    }
+    .quick-btn:hover { background: #263347; }
+    .quick-btn span  { color: #fbbf24; margin-left: 4px; }
+
+    /* ── Scrollbar ── */
+    #stream-log::-webkit-scrollbar { width: 5px; }
+    #stream-log::-webkit-scrollbar-track { background: transparent; }
+    #stream-log::-webkit-scrollbar-thumb { background: #2a2d3a; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <h1>DT Gateway — Live Demo</h1>
+  <p class="subtitle">Server-Sent Events stream + write interface &nbsp;|&nbsp; <code id="base-url">http://localhost:8085</code></p>
+
+  <div id="status-bar">
+    <div class="dot" id="conn-dot"></div>
+    <span id="conn-label">Connecting to stream…</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- LEFT: live stream -->
+    <div class="card">
+      <h2>Live Stream &nbsp;<span style="color:#555;font-weight:400;text-transform:none">— updates only, scroll for history</span></h2>
+      <div id="stream-log"></div>
+    </div>
+
+    <!-- RIGHT: write panel -->
+    <div class="card">
+      <h2>Send a Write</h2>
+
+      <div class="field-group">
+        <label>Element (idShort)</label>
+        <select id="idShort">
+          <option value="VendorName">VendorName</option>
+          <option value="VendorRevision">VendorRevision</option>
+          <option value="Version">Version</option>
+          <option value="WriteTargetX">WriteTargetX</option>
+          <option value="SpindleSpeed">SpindleSpeed</option>
+          <option value="ActualFeedrate">ActualFeedrate</option>
+          <option value="XAxisActualPosition">XAxisActualPosition</option>
+          <option value="OperationMode">OperationMode</option>
+          <option value="ProgramStatus">ProgramStatus</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label>New Value</label>
+        <input type="text" id="writeValue" placeholder='e.g.  ExampleVendor  or  42.5' />
+      </div>
+
+      <button onclick="sendWrite()">Send Write →</button>
+
+      <div id="write-result"></div>
+
+      <!-- Quick-fire buttons -->
+      <p class="quick-label">Quick demo writes</p>
+      <div class="quick-grid">
+        <button class="quick-btn" onclick="quickWrite('VendorName','ExampleVendor')">VendorName <span>ExampleVendor</span></button>
+        <button class="quick-btn" onclick="quickWrite('VendorName','MockVendor')">VendorName <span>MockVendor</span></button>
+        <button class="quick-btn" onclick="quickWrite('VendorRevision','v2.0-DEMO')">VendorRevision <span>v2.0-DEMO</span></button>
+        <button class="quick-btn" onclick="quickWrite('Version','9.9.9')">Version <span>9.9.9</span></button>
+        <button class="quick-btn" onclick="quickWrite('WriteTargetX','42.5')">WriteTargetX <span>42.5</span></button>
+        <button class="quick-btn" onclick="quickWrite('WriteTargetX','0')">WriteTargetX <span>0</span></button>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  const log     = document.getElementById('stream-log');
+  const dot     = document.getElementById('conn-dot');
+  const label   = document.getElementById('conn-label');
+  const result  = document.getElementById('write-result');
+  // Show the address this page was served from (falls back to the default port when opened as a file)
+  if (location.protocol.startsWith('http')) document.getElementById('base-url').textContent = location.origin;
+
+  let snapshotCount = 0;
+  let updateCount   = 0;
+
+  // ── SSE stream ─────────────────────────────────────────────────────────────
+  const source = new EventSource('/api/submodel/stream');
+
+  source.addEventListener('snapshot', e => {
+    snapshotCount++;
+    const d = JSON.parse(e.data);
+    dot.className   = 'dot connected';
+    label.textContent = `Connected — snapshot ${snapshotCount}/25 received`;
+    appendLine(d, 'snapshot');
+  });
+
+  source.addEventListener('update', e => {
+    updateCount++;
+    const d = JSON.parse(e.data);
+    label.textContent = `Connected — ${updateCount} updates received`;
+    appendLine(d, 'update');
+  });
+
+  source.onerror = () => {
+    dot.className   = 'dot error';
+    label.textContent = 'Stream disconnected — is the gateway running?';
+    const div = document.createElement('div');
+    div.className   = 'log-line log-error';
+    div.textContent = '── stream disconnected ──';
+    log.appendChild(div);
+  };
+
+  function appendLine(d, type) {
+    const div  = document.createElement('div');
+    div.className = `log-line log-${type}`;
+
+    // Payload shape: { key: "machineId.idShort", property: { value, qualifiers:[{type,value}] } }
+    const p      = d.property || {};
+    const q      = p.qualifiers || [];
+    const getQ   = t => { const x = q.find(e => e.type === t); return x ? x.value : ''; };
+    const unit   = getQ('Unit');
+    const stale  = getQ('StatusCode') === 'STALE';
+    const name   = d.key || p.idShort || '';
+    const value  = p.value;
+    const time   = new Date().toLocaleTimeString('en-GB', {hour12: false});
+
+    div.innerHTML =
+      `<span class="log-label">[${type === 'snapshot' ? 'SNAP' : 'UPD '}]</span>` +
+      `<span style="color:#444">${time}</span>  ` +
+      `<span class="log-name">${name}</span>` +
+      `<span class="${stale ? 'log-stale' : 'log-value'}">${value}</span>` +
+      `<span class="log-unit">${unit}${stale ? '  ⚠ STALE' : ''}</span>`;
+
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;   // auto-scroll to bottom
+  }
+
+  // ── Write ──────────────────────────────────────────────────────────────────
+  async function sendWrite() {
+    const idShort = document.getElementById('idShort').value;
+    const value   = document.getElementById('writeValue').value.trim();
+
+    if (!value) {
+      showResult('error', 'Enter a value first');
+      return;
+    }
+
+    await doWrite(idShort, value);
+  }
+
+  async function quickWrite(idShort, value) {
+    document.getElementById('idShort').value   = idShort;
+    document.getElementById('writeValue').value = value;
+    await doWrite(idShort, value);
+  }
+
+  async function doWrite(idShort, value) {
+    // The store is keyed "machineId.idShort". The writable nodes in this demo
+    // all belong to cnc-line1, so qualify a bare idShort with that machine.
+    // cnc-line1 is an demo machine: it comes with the plugin and its
+    // demo configs (internal project).
+    const key = idShort.includes('.') ? idShort : `cnc-line1.${idShort}`;
+
+    // send as JSON — try numeric first, fall back to string
+    const body = isNaN(value) ? JSON.stringify(value) : value;
+
+    try {
+      const res = await fetch(`/api/submodel/${key}/$value`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    body
+      });
+
+      if (res.status === 204) {
+        showResult('ok', `✅  ${idShort} = "${value}" written successfully`);
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        showResult('error', `❌  ${res.status} — ${err.message}`);
+      }
+    } catch (err) {
+      showResult('error', `❌  Network error — ${err.message}`);
+    }
+  }
+
+  function showResult(type, msg) {
+    result.className     = type;
+    result.textContent   = msg;
+    result.style.display = 'block';
+    setTimeout(() => { result.style.display = 'none'; }, 4000);
+  }
+</script>
+</body>
+</html>
